@@ -1,0 +1,114 @@
+version: '3.9'
+
+services:
+  golang-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.go
+    container_name: golang-app
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    env_file:
+      - .env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  openfga:
+    image: openfga/openfga:latest
+    container_name: openfga
+    environment:
+      - OPENFGA_STORAGE_TYPE=postgres
+      - OPENFGA_POSTGRES_URI=postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    depends_on:
+      - postgres
+    volumes:
+      - ./openfga-schema.fga:/etc/openfga/openfga-schema.fga
+    command: ["run", "--config", "/etc/openfga/openfga-schema.fga"]
+    ports:
+      - "8081:8081"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  openfga-migrate:
+    image: openfga/openfga:latest
+    container_name: openfga-migrate
+    environment:
+      - OPENFGA_STORAGE_TYPE=postgres
+      - OPENFGA_POSTGRES_URI=postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    depends_on:
+      - postgres
+    volumes:
+      - ./openfga-schema.fga:/etc/openfga/openfga-schema.fga
+    entrypoint: ["migrate", "--config", "/etc/openfga/openfga-schema.fga"]
+    networks:
+      - app-network
+
+  sveltekit-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.svelte
+    container_name: sveltekit-app
+    environment:
+      - BACKEND_HOST=golang-app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - golang-app
+    networks:
+      - app-network
+
+  postgres-backup:
+    container_name: marketplace.postgres_backup
+    env_file:
+      - .env
+    image: prodrigestivill/postgres-backup-local:15-alpine
+    networks:
+      - marketplace.db.network
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=${POSTGRES_DB:-$USER}
+      - POSTGRES_USER=${POSTGRES_USER:-$USER}
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - BACKUP_DIR=/backups
+      - POSTGRES_EXTRA_OPTS=-Z6 --schema=public --blobs
+      - SCHEDULE=${POSTGRES_BACKUP_SCHEDULE:-@daily}
+      - HEALTHCHECK_PORT=8080
+    volumes:
+      - ${POSTGRES_BACKUP_DIR:-./.backups/postgres}:/backups
+
+volumes:
+  postgres-data:
+  backup:
+
+networks:
+  app-network:
+    driver: bridge
+  marketplace.db.network:
+    driver: bridge
