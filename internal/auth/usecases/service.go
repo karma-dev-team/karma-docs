@@ -6,12 +6,19 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang-jwt/jwt"
+	"github.com/karma-dev-team/karma-docs/internal/auth"
 	"github.com/karma-dev-team/karma-docs/internal/user"
 	"github.com/karma-dev-team/karma-docs/internal/user/entities"
 )
 
+type AuthClaims struct {
+	jwt.StandardClaims
+	User *entities.User `json:"user"`
+}
+
 type AuthService struct {
-	userService    user.UserRepository
+	userRepo       user.UserRepository
 	hashSalt       string
 	signingKey     []byte
 	expireDuration time.Duration
@@ -27,7 +34,7 @@ func (a *AuthService) SignUp(ctx context.Context, username, email, password stri
 		return err
 	}
 
-	return a.userRepo.CreateUser(ctx, user)
+	return a.userRepo.AddUser(ctx, user)
 }
 
 func (a *AuthService) SignIn(ctx context.Context, username, password string) (string, error) {
@@ -36,7 +43,7 @@ func (a *AuthService) SignIn(ctx context.Context, username, password string) (st
 	pwd.Write([]byte(a.hashSalt))
 	password = fmt.Sprintf("%x", pwd.Sum(nil))
 
-	user, err := a.userRepo.GetUser(ctx, username, password)
+	user, err := a.userRepo.GetUser(ctx, user.GetUserRequest{Username: username})
 	if err != nil {
 		return "", auth.ErrUserNotFound
 	}
@@ -44,7 +51,7 @@ func (a *AuthService) SignIn(ctx context.Context, username, password string) (st
 	claims := AuthClaims{
 		User: user,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: jwt.At(time.Now().Add(a.expireDuration)),
+			ExpiresAt: time.At(time.Now().Add(a.expireDuration)),
 		},
 	}
 
@@ -53,7 +60,7 @@ func (a *AuthService) SignIn(ctx context.Context, username, password string) (st
 	return token.SignedString(a.signingKey)
 }
 
-func (a *AuthService) ParseToken(ctx context.Context, accessToken string) (*models.User, error) {
+func (a *AuthService) ParseToken(ctx context.Context, accessToken string) (*entities.User, error) {
 	token, err := jwt.ParseWithClaims(accessToken, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
