@@ -9,19 +9,35 @@ import (
 )
 
 type UserRouter struct {
-	userService *user.UserServcie
+	userService user.UserServcie
 }
 
-type getUserById struct {
-	Id uuid.UUID `json:"id"`
-}
+func (u *UserRouter) GetUserById(c *gin.Context) {
 
-func (user *UserRouter) GetUserById(c *gin.Context) {
-	req := new(getUserById)
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	userId, err := uuid.Parse(c.Param("userid"))
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, user.ErrUserNotFound)
 		return
 	}
-	c.MustGet()
+	user, err := u.userService.GetUser(c.Request.Context(), userId)
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, err)
+		return
+	}
+	c.JSON(http.StatusOK, user)
+}
+
+func (u *UserRouter) DeleteUser(c *gin.Context) {
+	userId, err := uuid.Parse(c.Param("userid"))
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	err = u.userService.DeleteUser(c.Request.Context(), userId)
+	if err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	c.Status(http.StatusOK)
 }

@@ -2,14 +2,15 @@ package usecases
 
 import (
 	"context"
-	"crypto/sha1"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/karma-dev-team/karma-docs/internal/auth"
-	"github.com/karma-dev-team/karma-docs/internal/user"
+	"github.com/karma-dev-team/karma-docs/internal/security"
 	"github.com/karma-dev-team/karma-docs/internal/user/entities"
+	"github.com/karma-dev-team/karma-docs/internal/user/repositories"
+	"github.com/karma-dev-team/karma-docs/pkg/errors"
 )
 
 type AuthClaims struct {
@@ -18,7 +19,7 @@ type AuthClaims struct {
 }
 
 type AuthService struct {
-	userRepo       user.UserRepository
+	userRepo       repositories.UserRepository
 	hashSalt       string
 	signingKey     []byte
 	expireDuration time.Duration
@@ -38,12 +39,13 @@ func (a *AuthService) SignUp(ctx context.Context, username, email, password stri
 }
 
 func (a *AuthService) SignIn(ctx context.Context, username, password string) (string, error) {
-	pwd := sha1.New()
-	pwd.Write([]byte(password))
-	pwd.Write([]byte(a.hashSalt))
-	password = fmt.Sprintf("%x", pwd.Sum(nil))
+	var err error
+	password, err = security.HashPassword(password)
+	if err != nil {
+		return "", errors.WrapMessage(err, "Password hashing failed")
+	}
 
-	user, err := a.userRepo.GetUser(ctx, user.GetUserRequest{Username: username})
+	user, err := a.userRepo.GetUser(ctx, repositories.GetUserRequest{Username: username})
 	if err != nil {
 		return "", auth.ErrUserNotFound
 	}
@@ -51,7 +53,7 @@ func (a *AuthService) SignIn(ctx context.Context, username, password string) (st
 	claims := AuthClaims{
 		User: user,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.At(time.Now().Add(a.expireDuration)),
+			ExpiresAt: time.Now().Add(a.expireDuration).Unix(),
 		},
 	}
 

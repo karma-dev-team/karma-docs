@@ -7,15 +7,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/karma-dev-team/karma-docs/internal/user"
 	"github.com/karma-dev-team/karma-docs/internal/user/entities"
 )
 
-type UserRepository struct {
+type UserRepositoryImpl struct {
 	db *pgxpool.Pool
 }
 
-func (repo *UserRepository) AddUser(ctx context.Context, user *entities.User) error {
+func (repo *UserRepositoryImpl) AddUser(ctx context.Context, user *entities.User) error {
 	query := `
 		INSERT INTO users (id, username, email)
 		VALUES ($1, $2, $3)
@@ -24,7 +23,7 @@ func (repo *UserRepository) AddUser(ctx context.Context, user *entities.User) er
 	return err
 }
 
-func (repo *UserRepository) GetUser(ctx context.Context, request user.GetUserRequest) (*entities.User, error) {
+func (repo *UserRepositoryImpl) GetUser(ctx context.Context, request GetUserRequest) (*entities.User, error) {
 	query := `
 		SELECT id, username, email
 		FROM users
@@ -44,7 +43,7 @@ func (repo *UserRepository) GetUser(ctx context.Context, request user.GetUserReq
 	return user, nil
 }
 
-func (repo *UserRepository) DeleteUser(ctx context.Context, userId uuid.UUID) error {
+func (repo *UserRepositoryImpl) DeleteUser(ctx context.Context, userId uuid.UUID) error {
 	query := `
 		DELETE FROM users
 		WHERE id = $1
