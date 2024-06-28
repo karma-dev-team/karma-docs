@@ -16,6 +16,12 @@ type signInRequest struct {
 	Password string `json:"password"`
 }
 
+type signUpRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
+
 type signInResponse struct {
 	Token string `json:"token"`
 }
@@ -34,4 +40,20 @@ func (a *AuthHandler) SignIn(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, signInResponse{Token: token})
+}
+
+func (a *AuthHandler) SingUp(c *gin.Context) {
+	inp := new(signUpRequest)
+
+	if err := c.BindJSON(inp); err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	if err := a.authService.SignUp(c.Request.Context(), inp.Email, inp.Username, inp.Password); err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	c.Status(http.StatusOK)
 }

@@ -1,11 +1,26 @@
 package entities
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Document struct {
-	Id      uuid.UUID
-	Name    string
-	OwnerId uuid.UUID
+	Id        uuid.UUID
+	Title     string
+	OwnerId   uuid.UUID
+	Text      string
+	CreatedAt time.Time
+	Version   string // optional
 }
 
 type DocumentService struct{}
+
+func NewDocument(
+	title string,
+	ownerId uuid.UUID,
+	text string,
+) {
+
+}

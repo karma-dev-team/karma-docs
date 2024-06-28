@@ -10,6 +10,7 @@ import (
 type GetUserRequest struct {
 	Username string
 	Email    string
+	Password string
 	UserId   uuid.UUID
 }
 

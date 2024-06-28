@@ -20,9 +20,16 @@ type AuthClaims struct {
 
 type AuthService struct {
 	userRepo       repositories.UserRepository
-	hashSalt       string
 	signingKey     []byte
 	expireDuration time.Duration
+}
+
+func NewAuthService(userRepo repositories.UserRepository, signingKey []byte, expireDuration time.Duration) *AuthService {
+	return &AuthService{
+		userRepo:       userRepo,
+		signingKey:     signingKey,
+		expireDuration: expireDuration,
+	}
 }
 
 func (a *AuthService) SignUp(ctx context.Context, username, email, password string) error {
@@ -45,7 +52,7 @@ func (a *AuthService) SignIn(ctx context.Context, username, password string) (st
 		return "", errors.WrapMessage(err, "Password hashing failed")
 	}
 
-	user, err := a.userRepo.GetUser(ctx, repositories.GetUserRequest{Username: username})
+	user, err := a.userRepo.GetUser(ctx, repositories.GetUserRequest{Username: username, Password: password})
 	if err != nil {
 		return "", auth.ErrUserNotFound
 	}

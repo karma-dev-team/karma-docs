@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/karma-dev-team/karma-docs/internal/user"
 	"github.com/karma-dev-team/karma-docs/internal/user/entities"
 	"github.com/karma-dev-team/karma-docs/internal/user/repositories"
 )
@@ -16,18 +17,11 @@ func NewUserService(repo repositories.UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
-func (s *UserService) CreateUser(ctx context.Context, username string) error {
-	// Generate a new UUID for the user
-	userId, err := uuid.NewRandom()
+func (s *UserService) CreateUser(ctx context.Context, dto user.CreateUserDto) error {
+	// Create a new user entity
+	user, err := entities.NewUser(dto.Username, dto.Email, dto.Password)
 	if err != nil {
 		return err
-	}
-
-	// Create a new user entity
-	user := &entities.User{
-		Id:       userId,
-		Username: username,
-		Email:    "", // Assuming email is optional here; modify as needed
 	}
 
 	// Add the user to the repository

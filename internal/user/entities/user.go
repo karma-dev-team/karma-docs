@@ -6,10 +6,10 @@ import (
 )
 
 type User struct {
-	Id             uuid.UUID `json: "id"`
-	Username       string    `json: "username"`
-	Email          string    `json: "email"`
-	HashedPassword string    `json: "hashed_password"`
+	Id             uuid.UUID `json:"id"`
+	Username       string    `json:"username"`
+	Email          string    `json:"email"`
+	HashedPassword string    `json:"hashed_password"`
 }
 
 type UserDomainService struct {

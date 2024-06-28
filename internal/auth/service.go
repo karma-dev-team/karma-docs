@@ -9,7 +9,7 @@ import (
 const CtxUserKey = "user"
 
 type AuthService interface {
-	SignUp(ctx context.Context, username, password string) error
+	SignUp(ctx context.Context, email, username, password string) error
 	SignIn(ctx context.Context, username, password string) (string, error)
 	ParseToken(ctx context.Context, accessToken string) (*entities.User, error)
 }

@@ -14,6 +14,10 @@ type UserRepositoryImpl struct {
 	db *pgxpool.Pool
 }
 
+func NewUserRepository(pool *pgxpool.Pool) *UserRepositoryImpl {
+	return &UserRepositoryImpl{db: pool}
+}
+
 func (repo *UserRepositoryImpl) AddUser(ctx context.Context, user *entities.User) error {
 	query := `
 		INSERT INTO users (id, username, email)
