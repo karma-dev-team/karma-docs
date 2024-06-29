@@ -4,17 +4,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/karma-dev-team/karma-docs/pkg/gormplugin"
 )
 
+// aggregate root!!!
 type Document struct {
-	Id                uuid.UUID
-	Title             string
-	OwnerId           uuid.UUID
-	Text              string
-	CreatedAt         time.Time
-	CurrentSnapshotId uuid.UUID
+	gormplugin.Model
+	Title   string
+	OwnerId uuid.UUID
+	Text    string
 	// eagerly loaded
-	Snapshots []DocumentSnapshot
+	Snapshots        []DocumentSnapshot `gorm:"foreignkey:DocumentId"`
+	Comments         []DocumentComment  `gorm:"foreignKey:DocumentID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	LastModifiedDate time.Time
 }
 
 func NewDocument(
@@ -22,16 +24,20 @@ func NewDocument(
 	ownerId uuid.UUID,
 	text string,
 ) *Document {
-	// ignore error, because we dont use pool randomization, and never will! so it is HIGHLY unlikly to cause any errors
-	id, _ := uuid.NewRandom()
 	return &Document{
-		Id:                id,
-		OwnerId:           ownerId,
-		Text:              text,
-		CurrentSnapshotId: uuid.Nil,
+		OwnerId:          ownerId,
+		Text:             text,
+		LastModifiedDate: time.Now(),
+		Snapshots:        []DocumentSnapshot{},
 	}
 }
 
-func (d *Document) Snapshot(madeById uuid.UUID, newText string) {
+func (d *Document) ChangeText(text string, madeby uuid.UUID) {
+	d.Text = text
+	d.Snapshots = append(d.Snapshots, *NewDocumentSnapshot(d.ID, text, madeby))
+	d.LastModifiedDate = time.Now()
+}
 
+func (d *Document) AddComment(text string, madeby uuid.UUID) {
+	d.Comments = append(d.Comments, *NewDocumentComment(text, d.ID, madeby))
 }

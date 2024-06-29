@@ -1,15 +1,21 @@
 package main
 
-import "log"
+import (
+	"log"
+
+	"github.com/karma-dev-team/karma-docs/internal/config"
+	"github.com/karma-dev-team/karma-docs/internal/server"
+)
 
 func main() {
-	if err := config.Init(); err != nil {
+	config, err := config.NewAppConfig()
+	if err != nil {
 		log.Fatalf("%s", err.Error())
 	}
 
-	app := server.NewApp()
+	app := server.NewApp(config)
 
-	if err := app.Run(viper.GetString("port")); err != nil {
+	if err := app.Run(config.Port); err != nil {
 		log.Fatalf("%s", err.Error())
 	}
 }

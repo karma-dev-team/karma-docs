@@ -6,8 +6,6 @@ import (
 )
 
 func RegisterAuth(router *gin.Engine, authService auth.AuthService) {
-	router.Use(NewAuthMiddleware(authService))
-
 	authApi := router.Group("/auth")
 	authHandler := AuthHandler{
 		authService: authService,

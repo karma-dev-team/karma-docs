@@ -1,6 +1,10 @@
 package config
 
-import "github.com/kelseyhightower/envconfig"
+import (
+	"fmt"
+
+	"github.com/kelseyhightower/envconfig"
+)
 
 type AppConfig struct {
 	Database struct {
@@ -15,9 +19,11 @@ type AppConfig struct {
 		ApiUrl      string `envconfig:"OPENFGA_APIURL"`
 		StoreId     string `envconfig:"OPENFGA_STOREID"`
 	}
-	Debug  bool `envconfig:"DEBUG"`
+	Debug  bool   `envconfig:"DEBUG"`
+	Port   string `envconfig:"PORT"`
 	Logger struct {
 		Level string `envconfig:"LOGGING_LEVEL"`
+		Path  string `envconfig:"LOGGING_PATH"`
 	}
 	Jwt struct {
 		TokenKey       string `envconfig:"TOKEN_SIGNING_KEY"`
@@ -25,7 +31,7 @@ type AppConfig struct {
 	}
 }
 
-func NewAppConfig(path string) (*AppConfig, error) {
+func NewAppConfig() (*AppConfig, error) {
 	cfg := new(AppConfig)
 	err := envconfig.Process("", &cfg)
 	if err != nil {
@@ -33,4 +39,9 @@ func NewAppConfig(path string) (*AppConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func (cfg *AppConfig) GenerateDSN() string {
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		cfg.Database.Host, cfg.Database.Port, cfg.Database.User, cfg.Database.Password, cfg.Database.Name)
 }
