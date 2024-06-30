@@ -13,7 +13,7 @@ type DocumentRepositoryImpl struct {
 	db *gorm.DB
 }
 
-func NewDocumentRepository(db *gorm.DB) *DocumentRepositoryImpl {
+func NewDocumentRepository(db *gorm.DB) DocumentRepository {
 	return &DocumentRepositoryImpl{
 		db: db,
 	}

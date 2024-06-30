@@ -1,15 +1,16 @@
 package entities
 
 import (
-	"github.com/google/uuid"
 	"github.com/karma-dev-team/karma-docs/internal/security"
+	"github.com/karma-dev-team/karma-docs/pkg/gormplugin"
 )
 
 type User struct {
-	Id             uuid.UUID `json:"id"`
-	Username       string    `json:"username"`
-	Email          string    `json:"email"`
-	HashedPassword string    `json:"hashed_password"`
+	gormplugin.Model
+	Username       string `json:"username"`
+	Email          string `json:"email"`
+	HashedPassword string `json:"hashed_password"`
+	IsBlocked      bool   `json:"is_blocked"`
 }
 
 type UserDomainService struct {
@@ -22,10 +23,10 @@ func NewUser(username string, email string, password string) (*User, error) {
 	}
 
 	user := User{
-		Id:             uuid.New(),
 		Username:       username,
 		Email:          email,
 		HashedPassword: hashed_password,
+		IsBlocked:      false,
 	}
 
 	return &user, nil
