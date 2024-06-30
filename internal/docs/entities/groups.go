@@ -17,6 +17,7 @@ type Group struct {
 	Name        string
 	Users       []*entities.User `gorm:"many2many:user_groups"`
 	Description string
+	CreatedBy   entities.User `gorm:"foreignkey:ID"`
 }
 
 func NewGroups(name, description string, users []*entities.User) *Group {

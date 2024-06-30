@@ -15,9 +15,10 @@ type AppConfig struct {
 		Port     int    `envconfig:"POSTGRES_PORT"`
 	}
 	Openfga struct {
-		DatabaseDsn string `envconfig:"OPENFGA_DATABASE"`
-		ApiUrl      string `envconfig:"OPENFGA_APIURL"`
-		StoreId     string `envconfig:"OPENFGA_STOREID"`
+		DatabaseDsn          string `envconfig:"OPENFGA_DATABASE"`
+		ApiUrl               string `envconfig:"OPENFGA_APIURL"`
+		StoreId              string `envconfig:"OPENFGA_STOREID"`
+		AuthorizationModelId string // writes in runtime, bc why not???
 	}
 	Debug  bool   `envconfig:"DEBUG"`
 	Port   string `envconfig:"PORT"`

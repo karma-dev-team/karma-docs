@@ -9,9 +9,9 @@ import (
 
 type DocumentService interface {
 	CreateDocument(ctx context.Context, dto CreateDocumentDto) (uuid.UUID, error)
-	GetDocument(ctx context.Context, documentId uuid.UUID) (*entities.Document, error)
+	GetDocument(ctx context.Context, documentId uuid.UUID, byUser uuid.UUID) (*entities.Document, error)
 	UpdateDocument(ctx context.Context, dto UpdateDocumentDto) error
-	DeleteDocument(ctx context.Context, documentId uuid.UUID) error
+	DeleteDocument(ctx context.Context, documentId uuid.UUID, groupId uuid.UUID) error
 	GetDocumentsList(ctx context.Context, dto GetDocumentsListDto) ([]*entities.Document, error)
 }
 

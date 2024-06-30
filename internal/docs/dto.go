@@ -10,8 +10,11 @@ type CreateDocumentDto struct {
 }
 
 type UpdateDocumentDto struct {
-	Title string
-	Text  string
+	DocumentID uuid.UUID
+	ByUser     uuid.UUID
+	ByGroup    uuid.UUID
+	Title      string
+	Text       string
 }
 
 type GetDocumentsListDto struct {

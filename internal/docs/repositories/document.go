@@ -19,9 +19,12 @@ func NewDocumentRepository(db *gorm.DB) DocumentRepository {
 	}
 }
 
-func (r *DocumentRepositoryImpl) AddDocument(ctx context.Context, document *entities.Document) error {
+func (r *DocumentRepositoryImpl) AddDocument(ctx context.Context, document *entities.Document) (uuid.UUID, error) {
 	result := r.db.WithContext(ctx).Create(document)
-	return result.Error
+	if result.Error != nil {
+		return uuid.Nil, result.Error
+	}
+	return document.ID, nil
 }
 
 func (r *DocumentRepositoryImpl) EditDocument(ctx context.Context, document *entities.Document) error {
@@ -41,4 +44,19 @@ func (r *DocumentRepositoryImpl) GetDocument(ctx context.Context, documentId uui
 func (r *DocumentRepositoryImpl) DeleteDocument(ctx context.Context, documentId uuid.UUID) error {
 	result := r.db.WithContext(ctx).Delete(&entities.Document{}, "id = ?", documentId)
 	return result.Error
+}
+
+func (r *DocumentRepositoryImpl) GetDocumentsList(ctx context.Context, query GetDocumentsListQuery) ([]*entities.Document, error) {
+	var documents []*entities.Document
+
+	// Construct your query based on the query parameters (if any)
+	// Example of a basic query:
+	result := r.db.WithContext(ctx).
+		Where("group_id = ? or author_id = ?", query.AuthorId, query.GroupId).
+		Find(&documents)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return documents, nil
 }

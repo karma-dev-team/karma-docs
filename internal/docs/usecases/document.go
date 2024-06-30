@@ -5,33 +5,37 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/karma-dev-team/karma-docs/internal/auth"
+	"github.com/karma-dev-team/karma-docs/internal/config"
 	"github.com/karma-dev-team/karma-docs/internal/docs"
 	"github.com/karma-dev-team/karma-docs/internal/docs/entities"
 	"github.com/karma-dev-team/karma-docs/internal/docs/repositories"
+	"github.com/karma-dev-team/karma-docs/pkg/gormplugin"
 	. "github.com/openfga/go-sdk/client"
 )
 
 type DocumentServiceImpl struct {
 	repo      repositories.DocumentRepository
 	fgaClient SdkClient // it's impossible to implement general interface to not to
+	config    *config.AppConfig
 }
 
-func NewDocumentService(repo repositories.DocumentRepository, fgaClient SdkClient) *DocumentServiceImpl {
+func NewDocumentService(repo repositories.DocumentRepository, fgaClient SdkClient, config *config.AppConfig) *DocumentServiceImpl {
 	return &DocumentServiceImpl{
 		repo:      repo,
 		fgaClient: fgaClient,
+		config:    config,
 	}
 }
 
 func (s *DocumentServiceImpl) CreateDocument(ctx context.Context, dto docs.CreateDocumentDto) (uuid.UUID, error) {
 	if dto.GroupId != nil {
-		body := ClientCheckRequest{
+		req := ClientCheckRequest{
 			User:     "user:" + dto.AuthorId.Version().String(),
 			Relation: "can_add_document",
 			Object:   "group:" + dto.GroupId.Version().String(),
 		}
 
-		resp, err := s.fgaClient.Check(ctx).Body(body).Execute()
+		resp, err := s.fgaClient.Check(ctx).Body(req).Execute()
 		if err != nil {
 			return uuid.Nil, err
 		}
@@ -40,7 +44,26 @@ func (s *DocumentServiceImpl) CreateDocument(ctx context.Context, dto docs.Creat
 		}
 	}
 	document := entities.NewDocument(dto.Title, dto.AuthorId, dto.Text)
-	err := s.repo.AddDocument(ctx, document)
+	documentId, err := s.repo.AddDocument(ctx, document)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	addReq := ClientWriteRequest{
+		Writes: []ClientTupleKey{
+			{
+				User:     "group:" + dto.GroupId.String(),
+				Relation: "write",
+				Object:   "document:" + documentId.String(),
+			},
+		},
+	}
+
+	_, err = s.fgaClient.
+		Write(ctx).
+		Body(addReq).
+		Options(ClientWriteOptions{AuthorizationModelId: &s.config.Openfga.AuthorizationModelId}).
+		Execute()
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -48,19 +71,70 @@ func (s *DocumentServiceImpl) CreateDocument(ctx context.Context, dto docs.Creat
 	return document.ID, nil
 }
 
-func (s *DocumentServiceImpl) GetDocument(ctx context.Context, documentId uuid.UUID) (*entities.Document, error) {
-	body := ClientCheckRequest{}
+func (s *DocumentServiceImpl) GetDocument(ctx context.Context, documentId uuid.UUID, byUser uuid.UUID) (*entities.Document, error) {
+	body := ClientCheckRequest{
+		User:     "group:" + byUser.String(),
+		Object:   "document" + documentId.String(),
+		Relation: "read",
+	}
+	resp, err := s.fgaClient.
+		Check(ctx).
+		Body(body).
+		Options(ClientCheckOptions{AuthorizationModelId: &s.config.Openfga.AuthorizationModelId}).
+		Execute()
+	if err != nil {
+		return nil, err
+	}
+	if !*resp.Allowed {
+		return nil, auth.ErrAccessDenied
+	}
 	return s.repo.GetDocument(ctx, documentId)
 }
 
 func (s *DocumentServiceImpl) UpdateDocument(ctx context.Context, dto docs.UpdateDocumentDto) error {
-	document := &entities.Document{
-		// Initialize fields from dto
+	err := s.canWriteToDocument(ctx, dto.ByGroup, dto.DocumentID)
+	if err != nil {
+		return err
 	}
+
+	document := &entities.Document{
+		Model: gormplugin.Model{ID: dto.DocumentID},
+		Title: dto.Title,
+		Text:  dto.Text,
+	}
+
 	return s.repo.EditDocument(ctx, document)
 }
 
-func (s *DocumentServiceImpl) DeleteDocument(ctx context.Context, documentId uuid.UUID) error {
+func (s *DocumentServiceImpl) canWriteToDocument(ctx context.Context, byGroupId uuid.UUID, documentId uuid.UUID) error {
+	body := ClientCheckRequest{
+		User:     "group:" + byGroupId.String(),
+		Relation: "write",
+		Object:   "document:" + documentId.String(),
+	}
+
+	resp, err := s.fgaClient.
+		Check(ctx).
+		Body(body).
+		Options(ClientCheckOptions{AuthorizationModelId: &s.config.Openfga.AuthorizationModelId}).
+		Execute()
+
+	if err != nil {
+		return err
+	}
+
+	if !*resp.Allowed {
+		return auth.ErrAccessDenied
+	}
+	return nil
+}
+
+func (s *DocumentServiceImpl) DeleteDocument(ctx context.Context, documentId uuid.UUID, groupId uuid.UUID) error {
+	err := s.canWriteToDocument(ctx, groupId, documentId)
+	if err != nil {
+		return err
+	}
+
 	return s.repo.DeleteDocument(ctx, documentId)
 }
 

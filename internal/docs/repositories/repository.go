@@ -13,7 +13,7 @@ type GetDocumentsListQuery struct {
 }
 
 type DocumentRepository interface {
-	AddDocument(ctx context.Context, document *entities.Document) error
+	AddDocument(ctx context.Context, document *entities.Document) (uuid.UUID, error)
 	EditDocument(ctx context.Context, document *entities.Document) error
 	GetDocument(ctx context.Context, documentId uuid.UUID) (*entities.Document, error)
 	GetDocumentsList(ctx context.Context, query GetDocumentsListQuery) ([]*entities.Document, error)
