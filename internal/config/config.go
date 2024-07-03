@@ -18,6 +18,7 @@ type AppConfig struct {
 		DatabaseDsn          string `envconfig:"OPENFGA_DATABASE"`
 		ApiUrl               string `envconfig:"OPENFGA_APIURL"`
 		StoreId              string `envconfig:"OPENFGA_STOREID"`
+		FilePath             string `envconfig:OPENFGA_FILEPATH`
 		AuthorizationModelId string // writes in runtime, bc why not???
 	}
 	Debug  bool   `envconfig:"DEBUG"`

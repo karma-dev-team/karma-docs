@@ -52,7 +52,7 @@ func (r *DocumentRepositoryImpl) GetDocumentsList(ctx context.Context, query Get
 	// Construct your query based on the query parameters (if any)
 	// Example of a basic query:
 	result := r.db.WithContext(ctx).
-		Where("group_id = ? or author_id = ?", query.AuthorId, query.GroupId).
+		Where("group_id = ? or id IN (?)", query.GroupId, query.DocumentIds).
 		Find(&documents)
 	if result.Error != nil {
 		return nil, result.Error

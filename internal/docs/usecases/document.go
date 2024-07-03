@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/karma-dev-team/karma-docs/internal/auth"
@@ -35,7 +36,11 @@ func (s *DocumentServiceImpl) CreateDocument(ctx context.Context, dto docs.Creat
 			Object:   "group:" + dto.GroupId.Version().String(),
 		}
 
-		resp, err := s.fgaClient.Check(ctx).Body(req).Execute()
+		resp, err := s.fgaClient.
+			Check(ctx).
+			Body(req).
+			Options(ClientCheckOptions{AuthorizationModelId: &s.config.Openfga.AuthorizationModelId}).
+			Execute()
 		if err != nil {
 			return uuid.Nil, err
 		}
@@ -139,11 +144,29 @@ func (s *DocumentServiceImpl) DeleteDocument(ctx context.Context, documentId uui
 }
 
 func (s *DocumentServiceImpl) GetDocumentsList(ctx context.Context, dto docs.GetDocumentsListDto) ([]*entities.Document, error) {
-	// Implement logic to fetch a list of documents based on dto criteria
-	// Example:
+	resp, err := s.fgaClient.ListObjects(ctx).Body(ClientListObjectsRequest{
+		User:     "group:" + dto.GroupId.String(),
+		Relation: "read",
+		Type:     "document",
+	}).Options(
+		ClientListObjectsOptions{AuthorizationModelId: &s.config.Openfga.AuthorizationModelId},
+	).Execute()
+	if err != nil {
+		return nil, err
+	}
+	var documentIds []uuid.UUID
+	for _, obj := range resp.GetObjects() {
+		id := strings.Split(obj, ":")[1]
+		documentId, err := uuid.FromBytes([]byte(id))
+		if err != nil {
+			return nil, err
+		}
+		documentIds = append(documentIds, documentId)
+	}
+
 	documents, err := s.repo.GetDocumentsList(ctx, repositories.GetDocumentsListQuery{
-		AuthorId: dto.AuthorId,
-		GroupId:  dto.GroupId,
+		GroupId:     dto.GroupId,
+		DocumentIds: documentIds,
 	})
 	if err != nil {
 		return nil, err

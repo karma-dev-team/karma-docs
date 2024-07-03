@@ -18,8 +18,7 @@ type UpdateDocumentDto struct {
 }
 
 type GetDocumentsListDto struct {
-	GroupId  uuid.UUID // optional
-	AuthorId uuid.UUID // optional
+	GroupId uuid.UUID // optional
 }
 
 type CreateGroupDto struct {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"log/slog"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	userApi "github.com/karma-dev-team/karma-docs/internal/user/api"
 	"github.com/karma-dev-team/karma-docs/internal/user/repositories"
 	userUsecase "github.com/karma-dev-team/karma-docs/internal/user/usecases"
+	. "github.com/openfga/go-sdk/client"
 	"github.com/pkg/errors"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -41,7 +43,8 @@ type App struct {
 
 func NewApp(config *config.AppConfig) *App {
 	loggerInstance := initLogging(config)
-	db := initDB(config, loggerInstance)
+	db := initDB(config)
+	fgaClient := initFgaClient(config)
 
 	userRepo := repositories.NewUserRepository(db)
 	docsRepo := docsRepositories.NewDocumentRepository(db)
@@ -52,7 +55,7 @@ func NewApp(config *config.AppConfig) *App {
 			[]byte(config.Jwt.TokenKey),
 			time.Duration(config.Jwt.ExpireDuration),
 		),
-		docsService: docsUsecase.NewDocumentService(docsRepo),
+		docsService: docsUsecase.NewDocumentService(docsRepo, fgaClient, config),
 		userService: userUsecase.NewUserService(userRepo),
 		Logger:      loggerInstance,
 	}
@@ -100,10 +103,55 @@ func (a *App) Run(port string) error {
 	return a.httpServer.Shutdown(ctx)
 }
 
-func initDB(config *config.AppConfig, logger *slog.Logger) *gorm.DB {
+func initFgaClient(config *config.AppConfig) SdkClient {
+	fgaClient, err := NewSdkClient(&ClientConfiguration{
+		ApiUrl: config.Openfga.ApiUrl, // required, e.g. https://api.fga.example
+	})
+	if err != nil {
+		panic(err)
+	}
+	resp, err := fgaClient.CreateStore(context.Background()).Body(ClientCreateStoreRequest{
+		Name: "karmadocs",
+	}).Execute()
+	if err != nil {
+		panic(err)
+	}
+	var writeAuthModel []byte
+	file, err := os.Open(config.Openfga.FilePath)
+	if err != nil {
+		panic(err)
+	}
+	_, err = file.Read(writeAuthModel)
+	if err != nil {
+		panic(err)
+	}
+	var body ClientWriteAuthorizationModelRequest
+
+	if err := json.Unmarshal([]byte(writeAuthModel), &body); err != nil {
+		panic(err)
+	}
+	data, err := fgaClient.WriteAuthorizationModel(context.Background()).Body(body).Execute()
+	if err != nil {
+		panic(err)
+	}
+	config.Openfga.AuthorizationModelId = data.AuthorizationModelId
+
+	fgaClientNew, err := NewSdkClient(&ClientConfiguration{
+		ApiUrl:               config.Openfga.ApiUrl,
+		AuthorizationModelId: config.Openfga.AuthorizationModelId,
+		StoreId:              resp.Id,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	return fgaClientNew
+}
+
+func initDB(config *config.AppConfig) *gorm.DB {
 	dsn := config.GenerateDSN()
 	dbConfig := &gorm.Config{}
-	logger.Info("Creating database, opening database")
+	slog.Info("Creating database, opening database")
 	db, err := gorm.Open(postgres.Open(dsn), dbConfig)
 	if err != nil {
 		// early panic, so it cannot continue

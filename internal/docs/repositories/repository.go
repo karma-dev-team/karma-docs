@@ -8,8 +8,8 @@ import (
 )
 
 type GetDocumentsListQuery struct {
-	GroupId  uuid.UUID
-	AuthorId uuid.UUID
+	GroupId     uuid.UUID
+	DocumentIds []uuid.UUID
 }
 
 type DocumentRepository interface {
